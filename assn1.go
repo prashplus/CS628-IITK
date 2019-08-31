@@ -43,6 +43,23 @@ func has(hashdata []byte) []byte {
 	return ha
 }
 
+type MAC struct {
+	ciphertext []byte
+	mac        []byte
+}
+
+type fileblock struct {
+	data   []byte
+	mackey []byte
+}
+
+type filemetadata struct {
+	fileid     uuid.UUID
+	encryptkey []byte
+	blocks     map[int]string
+	size       int
+}
+
 type user struct {
 	username   string
 	password   string
@@ -118,6 +135,26 @@ type User struct {
 // of data []byte is a multiple of the blocksize; if
 // this is not the case, StoreFile should return an error.
 func (userdata *User) StoreFile(filename string, data []byte) (err error) {
+	var metaddata filemetadata
+	metaddata.blocks = make(map[int]string)
+
+	if len(data)%userlib.BlockSize != 0 {
+		return errors.New("invalid block size")
+	}
+
+	metaddata.fileid = bytesToUUID([]byte(filename))
+	metaddata.size = len(data) / userlib.BlockSize
+
+	metaddata.encryptkey = userlib.Argon2Key([]byte(userdata.Username), []byte(filename), 16)
+
+	for i := 0; i < metaddata.size; i++ {
+		address := string(has([]byte(filename + string(i))))
+		metaddata.blocks[i] = address
+		Edata := newCFBEncrypter(data, metaddata.encryptkey)
+		userlib.DatastoreSet(address, Edata)
+	}
+	userdata.file[filename] = metaddata
+	return nil
 }
 
 // Append should be efficient, you shouldn't rewrite or reencrypt the
