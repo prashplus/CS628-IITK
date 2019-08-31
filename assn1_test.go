@@ -41,40 +41,16 @@ func TestUserStorage(t *testing.T) {
 	//add more test cases here
 }
 
-// func TestFileStoreLoadAppend(t *testing.T) {
-// 	data1 := userlib.RandomBytes(4096)
-// 	InitUser("lavlesh", "mishra")
-// 	u1, _ := GetUser("lavlesh", "mishra")
-// 	_ = u1.StoreFile("file1", data1)
+func TestFileStoreLoadAppend(t *testing.T) {
+	data1 := userlib.RandomBytes(4096)
+	InitUser("kuldeep", "kuldeep")
+	u1, _ := GetUser("kuldeep", "kuldeep")
+	_ = u1.StoreFile("file1", data1)
 
-// 	data2, err := u1.LoadFile("file1", 0)
-// 	if err != nil {
-// 		fmt.Printf("%v", err)
-// 		//return nil, err
-// 	}
-// 	if !reflect.DeepEqual(data1, data2) {
-// 		t.Error("data corrupted")
-// 	} else {
-// 		t.Log("data is not corrupted")
-// 	}
-// 	//u3, _ := GetUser("lavlesh", "mishra")
-// 	metadata := u1.Myfiles["file1"]
-// 	fmt.Printf("file size before append: %v ", metadata.size)
+}
 
-// 	//testing fakefile
-// 	err1 := u1.AppendFile("file1", data1)
-// 	if err1 != nil {
-// 		fmt.Printf("append error %v\n", err1)
-// 		//t.Error("append fail")
-// 	}
-// 	//u2, _ := GetUser("lavlesh", "mishra")
-// 	metadata1 := u1.Myfiles["file1"]
-// 	fmt.Printf("file size after append: %v", metadata1.size)
-// 	// add test cases here
-// }
-
-// /*
-// func TestFileShareReceive(t *testing.T) {
-//   // add test cases here
-// }
-// */
+/*
+func TestFileShareReceive(t *testing.T) {
+  // add test cases here
+}
+*/
