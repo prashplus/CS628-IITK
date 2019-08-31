@@ -1,6 +1,9 @@
 package assn1
 
 import (
+	//1
+
+	"fmt"
 	"testing"
 
 	"github.com/sarkarbidya/CS628-assn1/userlib"
@@ -26,33 +29,52 @@ func TestInitUser(t *testing.T) {
 }
 
 func TestUserStorage(t *testing.T) {
-	u1, err1 := GetUser("", "fubar")
-	if err1 != nil {
-		t.Log("Cannot load data for invalid user", u1)
+	InitUser("kuldeep", "kuldeep")
+	u1, err1 := GetUser("kuldeep", "kuldeep")
+	if err1 == nil && u1.Username == "kuldeep" {
+		fmt.Printf("User name is %s", u1.Username)
+		//t.Log("Cannot load data for invalid user", u1)
 	} else {
+		fmt.Printf("Error is :%v\n", err1)
 		t.Error("Data loaded for invalid user", err1)
 	}
-
-	// add more test cases here
+	//add more test cases here
 }
 
-/*
-func TestFileStoreLoadAppend(t *testing.T) {
-	data1 := userlib.RandomBytes(4096)
-	_ := u1.StoreFile("file1", data1)
+// func TestFileStoreLoadAppend(t *testing.T) {
+// 	data1 := userlib.RandomBytes(4096)
+// 	InitUser("lavlesh", "mishra")
+// 	u1, _ := GetUser("lavlesh", "mishra")
+// 	_ = u1.StoreFile("file1", data1)
 
-	data2, _ := u1.LoadFile("file1", 0)
+// 	data2, err := u1.LoadFile("file1", 0)
+// 	if err != nil {
+// 		fmt.Printf("%v", err)
+// 		//return nil, err
+// 	}
+// 	if !reflect.DeepEqual(data1, data2) {
+// 		t.Error("data corrupted")
+// 	} else {
+// 		t.Log("data is not corrupted")
+// 	}
+// 	//u3, _ := GetUser("lavlesh", "mishra")
+// 	metadata := u1.Myfiles["file1"]
+// 	fmt.Printf("file size before append: %v ", metadata.size)
 
-	if !reflect.DeepEqual(data1, data2) {
-		t.Error("data corrupted")
-	} else {
-		t.Log("data is not corrupted")
-	}
+// 	//testing fakefile
+// 	err1 := u1.AppendFile("file1", data1)
+// 	if err1 != nil {
+// 		fmt.Printf("append error %v\n", err1)
+// 		//t.Error("append fail")
+// 	}
+// 	//u2, _ := GetUser("lavlesh", "mishra")
+// 	metadata1 := u1.Myfiles["file1"]
+// 	fmt.Printf("file size after append: %v", metadata1.size)
+// 	// add test cases here
+// }
 
-	// add test cases here
-}
-
-func TestFileShareReceive(t *testing.T) {
-	// add test cases here
-}
-*/
+// /*
+// func TestFileShareReceive(t *testing.T) {
+//   // add test cases here
+// }
+// */
