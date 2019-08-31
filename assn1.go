@@ -73,15 +73,16 @@ func setBlockSize(blocksize int) {
 	configBlockSize = blocksize
 }
 
-//NewHash helper function to return hash as []byte
-func NewHash(inpData []byte) []byte {
+//Hash helper function to return hash as []byte
+func Hash(datatoHash []byte) []byte {
 	hasher := userlib.NewSHA256()
-	hasher.Write(inpData)
+	hasher.Write(datatoHash)
 	hash := hasher.Sum(nil)
 	return hash
 }
 
-func cdbencrypt(plainText []byte, argonkey []byte) (ciphertext []byte) {
+//cfbencrypt helper function to CFBEncrypter
+func cfbencrypt(plainText []byte, argonkey []byte) (ciphertext []byte) {
 	ciphertext = make([]byte, userlib.BlockSize+len(plainText))
 	iv := ciphertext[:userlib.BlockSize]
 	copy(iv, userlib.RandomBytes(userlib.BlockSize))
@@ -90,6 +91,7 @@ func cdbencrypt(plainText []byte, argonkey []byte) (ciphertext []byte) {
 	return
 }
 
+//cfbdecrypt helper function to CFBDecrypter
 func cfbdecrypt(ciphertext []byte, Key []byte) (plaintext []byte, err error) {
 	if len(ciphertext) <= userlib.BlockSize {
 		return nil, errors.New(strings.ToTitle("Invalid Ciphertext"))
@@ -101,36 +103,55 @@ func cfbdecrypt(ciphertext []byte, Key []byte) (plaintext []byte, err error) {
 	return plaintext, nil
 }
 
-//eUser helper struct to store encrypted_data and mac(encrypted_data)
-type eUser struct {
+//euser helper struct to store encrypted_data and mac(encrypted_data)
+type euser struct {
 	CipherText []byte
 	Mac        []byte
 }
 
-//MetaData struct
-type MetaData struct {
+//FileMetadata struct
+type FileMetadata struct {
 	fileName   string
 	EncryptKey []byte
-	IndBlocks  map[int]string
-	MacOfBlock map[int][]byte
+	blocks     map[int]string
+	blockMac   map[int][]byte
 	size       int
+}
+
+//FileBlock Struct
+type FileBlock struct {
+	Data []byte
+	Hmac []byte
+}
+
+//functio to store blocks
+func storeBlock(filename string, data []byte, offset int, argonkey []byte) string {
+	addr := string(Hash([]byte(filename + string(offset))))
+	Edata := cfbencrypt(data, argonkey)
+	userlib.DatastoreSet(addr, Edata)
+	return addr
+
 }
 
 //User : User structure used to store the user information
 type User struct {
 	Username   string
 	pass       string
-	files      map[string]MetaData
+	files      map[string]FileMetadata
 	sharedfile map[string]sharingRecord
 	PrivateKey *userlib.PrivateKey
 }
 
 // StoreFile : function used to create a  file
-// It should store the file in IndBlocks only if length
+// It should store the file in blocks only if length
 // of data []byte is a multiple of the blocksize; if
 // this is not the case, StoreFile should return an error.
 func (userdata *User) StoreFile(filename string, data []byte) (err error) {
-	return
+	if filename == "" || len(data)%configBlockSize != 0 {
+		return errors.New("Error in Storing file")
+	}
+	location := userdata.Username + filename
+
 }
 
 // AppendFile Append should be efficient, you shouldn't rewrite or reencrypt the
@@ -139,7 +160,7 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 // the block size; if it is not, AppendFile must return an error.
 // AppendFile : Function to append the file
 func (userdata *User) AppendFile(filename string, data []byte) (err error) {
-	return nil
+	return
 }
 
 // LoadFile :This loads a block from a file in the Datastore.
@@ -149,7 +170,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 // of data.
 //
 // LoadFile is also expected to be efficient. Reading a random block from the
-// file should not fetch more than O(1) IndBlocks from the Datastore.
+// file should not fetch more than O(1) blocks from the Datastore.
 func (userdata *User) LoadFile(filename string, offset int) (data []byte, err error) {
 	return
 }
@@ -206,7 +227,7 @@ type sharingRecord struct {
 //InitUser : function used to create user
 func InitUser(username string, password string) (userdataptr *User, err error) {
 	var user User
-	var userEmac eUser
+	var userEmac euser
 	user.Username = username
 	user.pass = password
 	rsaKey, err := userlib.GenerateRSAKey()
@@ -215,19 +236,19 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 		err = errors.New("Invalid Username or Password")
 		return nil, err
 	}
-	argonkey := userlib.Argon2Key([]byte(user.pass), NewHash([]byte(user.Username)), 16)
+	argonkey := userlib.Argon2Key([]byte(user.pass), Hash([]byte(user.Username)), 16)
 	pubkey := rsaKey.PublicKey
 	userlib.KeystoreSet(user.Username, pubkey)
 
 	userstructMarshal, _ := json.Marshal(user)
 
-	userEmac.CipherText = cdbencrypt([]byte(userstructMarshal), argonkey)
+	userEmac.CipherText = cfbencrypt([]byte(userstructMarshal), argonkey)
 
 	hasher := userlib.NewSHA256()
 	hasher.Write(userEmac.CipherText)
 	userEmac.Mac = hasher.Sum(nil)
 
-	user.files = make(map[string]MetaData)
+	user.files = make(map[string]FileMetadata)
 	user.sharedfile = make(map[string]sharingRecord)
 	user.PrivateKey = rsaKey
 
@@ -237,7 +258,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	hasher.Write([]byte(user.Username + user.pass))
 	keyToDataStore := hasher.Sum(nil)
 
-	encryptedUserData := cdbencrypt(userData, argonkey)
+	encryptedUserData := cfbencrypt(userData, argonkey)
 	userlib.DatastoreSet(string(keyToDataStore), encryptedUserData)
 
 	return &user, nil
@@ -249,13 +270,14 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 // GetUser : function used to get the user details
 func GetUser(username string, password string) (userdataptr *User, err error) {
 	//Generating Argon key
-	argonkey := userlib.Argon2Key([]byte(password), NewHash([]byte(username)), 16)
+	argonkey := userlib.Argon2Key([]byte(password), Hash([]byte(username)), 16)
 
 	hasher := userlib.NewSHA256()
 	hasher.Write([]byte(username + password))
 	keyToDataStore := hasher.Sum(nil)
 
 	value, ok := userlib.DatastoreGet(string(keyToDataStore))
+
 	if value == nil || ok == false {
 		return nil, errors.New("Data Corrupted")
 	}
@@ -263,7 +285,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	if err != nil {
 		return nil, errors.New("Data Corrupted")
 	}
-	var emac eUser
+	var emac euser
 	json.Unmarshal(userData, &emac)
 
 	hasher = userlib.NewSHA256()
