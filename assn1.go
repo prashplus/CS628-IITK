@@ -109,13 +109,13 @@ type euser struct {
 	Mac        []byte
 }
 
-//FileMetadata struct
-type FileMetadata struct {
-	fileName   string
-	EncryptKey []byte
-	blocks     map[int]string
-	blockMac   map[int][]byte
-	size       int
+//Metadata struct
+type Metadata struct {
+	fileName  string
+	key       []byte
+	fblocks   map[int]string
+	fblockmac map[int][]byte
+	size      int
 }
 
 //FileBlock Struct
@@ -124,7 +124,7 @@ type FileBlock struct {
 	Hmac []byte
 }
 
-//functio to store blocks
+//function to store blocks
 func storeBlock(filename string, data []byte, offset int, argonkey []byte) string {
 	addr := string(Hash([]byte(filename + string(offset))))
 	Edata := cfbencrypt(data, argonkey)
@@ -137,21 +137,51 @@ func storeBlock(filename string, data []byte, offset int, argonkey []byte) strin
 type User struct {
 	Username   string
 	pass       string
-	files      map[string]FileMetadata
+	files      map[string]Metadata
 	sharedfile map[string]sharingRecord
 	PrivateKey *userlib.PrivateKey
 }
 
 // StoreFile : function used to create a  file
-// It should store the file in blocks only if length
+// It should store the file in fblocks only if length
 // of data []byte is a multiple of the blocksize; if
 // this is not the case, StoreFile should return an error.
 func (userdata *User) StoreFile(filename string, data []byte) (err error) {
+	var filedata Metadata
+	var block FileBlock
+
+	key := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
+
 	if filename == "" || len(data)%configBlockSize != 0 {
 		return errors.New("Error in Storing file")
 	}
-	location := userdata.Username + filename
 
+	filedata.fileName = filename
+	filedata.size = len(data) / configBlockSize
+	filedata.fblockmac = make(map[int][]byte)
+	filedata.fblocks = make(map[int]string)
+	filedata.key = userlib.Argon2Key([]byte(userdata.pass), []byte(filename), 16)
+
+	for i := 0; i < filedata.size; i++ {
+		filedata.fblockmac[i] = Hash(data[i : configBlockSize+i])
+		filedata.fblocks[i] = storeBlock(filename, data[i:configBlockSize+i], i, filedata.key)
+	}
+	userdata.files[filename] = filedata
+	userStr, _ := json.Marshal(userdata)
+	block.Data = cfbencrypt([]byte(userStr), key)
+	block.Hmac = Hash(block.Data)
+	storedata(*userdata, block)
+	return
+
+}
+
+//storeData fuction
+func storedata(user User, block FileBlock) {
+	userData, _ := json.Marshal(block)
+	userKey := Hash([]byte(user.Username + user.pass))
+	key := userlib.Argon2Key([]byte(user.pass), Hash([]byte(user.Username)), 16)
+	EuserData := cfbencrypt(userData, key)
+	userlib.DatastoreSet(string(userKey), EuserData)
 }
 
 // AppendFile Append should be efficient, you shouldn't rewrite or reencrypt the
@@ -170,7 +200,7 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 // of data.
 //
 // LoadFile is also expected to be efficient. Reading a random block from the
-// file should not fetch more than O(1) blocks from the Datastore.
+// file should not fetch more than O(1) fblocks from the Datastore.
 func (userdata *User) LoadFile(filename string, offset int) (data []byte, err error) {
 	return
 }
@@ -248,7 +278,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	hasher.Write(userEmac.CipherText)
 	userEmac.Mac = hasher.Sum(nil)
 
-	user.files = make(map[string]FileMetadata)
+	user.files = make(map[string]Metadata)
 	user.sharedfile = make(map[string]sharingRecord)
 	user.PrivateKey = rsaKey
 
