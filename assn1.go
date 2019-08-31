@@ -82,31 +82,31 @@ func Hash(datatoHash []byte) []byte {
 }
 
 //cfbencrypt helper function to CFBEncrypter
-func cfbencrypt(plainText []byte, argonkey []byte) (ciphertext []byte) {
-	ciphertext = make([]byte, userlib.BlockSize+len(plainText))
-	iv := ciphertext[:userlib.BlockSize]
+func cfbencrypt(plainText []byte, argonkey []byte) (Ctext []byte) {
+	Ctext = make([]byte, userlib.BlockSize+len(plainText))
+	iv := Ctext[:userlib.BlockSize]
 	copy(iv, userlib.RandomBytes(userlib.BlockSize))
 	cipher := userlib.CFBEncrypter(argonkey, iv)
-	cipher.XORKeyStream(ciphertext[userlib.BlockSize:], plainText)
+	cipher.XORKeyStream(Ctext[userlib.BlockSize:], plainText)
 	return
 }
 
 //cfbdecrypt helper function to CFBDecrypter
-func cfbdecrypt(ciphertext []byte, Key []byte) (plaintext []byte, err error) {
-	if len(ciphertext) <= userlib.BlockSize {
-		return nil, errors.New(strings.ToTitle("Invalid Ciphertext"))
+func cfbdecrypt(Ctext []byte, Key []byte) (plaintext []byte, err error) {
+	if len(Ctext) <= userlib.BlockSize {
+		return nil, errors.New(strings.ToTitle("Invalid Ctext"))
 	}
-	iv := ciphertext[:userlib.BlockSize]
+	iv := Ctext[:userlib.BlockSize]
 	cipher := userlib.CFBDecrypter(Key, iv)
-	cipher.XORKeyStream(ciphertext[userlib.BlockSize:], ciphertext[userlib.BlockSize:])
-	plaintext = ciphertext[userlib.BlockSize:]
+	cipher.XORKeyStream(Ctext[userlib.BlockSize:], Ctext[userlib.BlockSize:])
+	plaintext = Ctext[userlib.BlockSize:]
 	return plaintext, nil
 }
 
 //euser helper struct to store encrypted_data and mac(encrypted_data)
 type euser struct {
-	CipherText []byte
-	Mac        []byte
+	Ctext []byte
+	Mac   []byte
 }
 
 //Metadata struct
@@ -125,7 +125,7 @@ type FileBlock struct {
 }
 
 //function to store blocks
-func storeBlock(filename string, data []byte, offset int, argonkey []byte) string {
+func BLOCKS(filename string, data []byte, offset int, argonkey []byte) string {
 	addr := string(Hash([]byte(filename + string(offset))))
 	Edata := cfbencrypt(data, argonkey)
 	userlib.DatastoreSet(addr, Edata)
@@ -164,19 +164,19 @@ func (userdata *User) StoreFile(filename string, data []byte) (err error) {
 
 	for i := 0; i < filedata.size; i++ {
 		filedata.fblockmac[i] = Hash(data[i : configBlockSize+i])
-		filedata.fblocks[i] = storeBlock(filename, data[i:configBlockSize+i], i, filedata.key)
+		filedata.fblocks[i] = BLOCKS(filename, data[i:configBlockSize+i], i, filedata.key)
 	}
 	userdata.files[filename] = filedata
 	userStr, _ := json.Marshal(userdata)
 	block.Data = cfbencrypt([]byte(userStr), key)
 	block.Hmac = Hash(block.Data)
-	storedata(*userdata, block)
+	Storing(*userdata, block)
 	return
 
 }
 
 //storeData fuction
-func storedata(user User, block FileBlock) {
+func Storing(user User, block FileBlock) {
 	userData, _ := json.Marshal(block)
 	userKey := Hash([]byte(user.Username + user.pass))
 	key := userlib.Argon2Key([]byte(user.pass), Hash([]byte(user.Username)), 16)
@@ -190,11 +190,42 @@ func storedata(user User, block FileBlock) {
 // the block size; if it is not, AppendFile must return an error.
 // AppendFile : Function to append the file
 func (userdata *User) AppendFile(filename string, data []byte) (err error) {
+	argonkeynew := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
+	var eusr euser
+
+	if len(data)%configBlockSize != 0 || filename == "" || len(data) == 0 {
+		e := errors.New("Either filename not valid or length mismatch")
+		return e
+	}
+
+	mData := userdata.files[filename]
+	if mData.fileName != filename {
+		return errors.New("File not found")
+	}
+
+	j := 0
+	for i := mData.size; i < mData.size+(len(data)/configBlockSize); i++ {
+		mData.fblocks[i] = BLOCKS(filename, data[j:j+configBlockSize], i, mData.key)
+		mData.fblockmac[i] = Hash(data[j : j+configBlockSize])
+		j += configBlockSize
+	}
+
+	//UPDATED META DATA SIZE
+	mData.size += len(data) / configBlockSize
+	userdata.files[filename] = mData
+	userdatastruct, _ := json.Marshal(userdata)
+	eusr.Ctext = cfbencrypt([]byte(userdatastruct), argonkeynew)
+	eusr.Mac = Hash(eusr.Ctext)
+
+	userData, _ := json.Marshal(eusr)
+	ukey := Hash([]byte(userdata.Username + userdata.pass))
+	EncUserData := cfbencrypt([]byte(userData), argonkeynew)
+	userlib.DatastoreSet(string(ukey), EncUserData)
+
 	return
 }
 
 // LoadFile :This loads a block from a file in the Datastore.
-//
 // It should give an error if the file block is corrupted in any way.
 // If there is no error, it must return exactly one block (of length blocksize)
 // of data.
@@ -266,16 +297,17 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 		err = errors.New("Invalid Username or Password")
 		return nil, err
 	}
+
 	argonkey := userlib.Argon2Key([]byte(user.pass), Hash([]byte(user.Username)), 16)
 	pubkey := rsaKey.PublicKey
 	userlib.KeystoreSet(user.Username, pubkey)
 
 	userstructMarshal, _ := json.Marshal(user)
 
-	userEmac.CipherText = cfbencrypt([]byte(userstructMarshal), argonkey)
+	userEmac.Ctext = cfbencrypt([]byte(userstructMarshal), argonkey)
 
 	hasher := userlib.NewSHA256()
-	hasher.Write(userEmac.CipherText)
+	hasher.Write(userEmac.Ctext)
 	userEmac.Mac = hasher.Sum(nil)
 
 	user.files = make(map[string]Metadata)
@@ -319,7 +351,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	json.Unmarshal(userData, &emac)
 
 	hasher = userlib.NewSHA256()
-	hasher.Write([]byte(emac.CipherText))
+	hasher.Write([]byte(emac.Ctext))
 	returnedMAC := hasher.Sum(nil)
 
 	ok1 := userlib.Equal(emac.Mac, returnedMAC)
@@ -327,7 +359,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 		return nil, errors.New("Data Corrupted")
 	}
 	var user User
-	plaintext, _ := cfbdecrypt(emac.CipherText, argonkey)
+	plaintext, _ := cfbdecrypt(emac.Ctext, argonkey)
 	json.Unmarshal(plaintext, &user)
 
 	return &user, nil
