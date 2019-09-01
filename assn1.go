@@ -385,19 +385,19 @@ func (userdata *User) ShareFile(filename string, recipient string) (msgid string
 		return "", errors.New("Either Filename or Recipient is empty")
 	}
 	var sharedata Metadata
-	pk, check := userlib.KeystoreGet(recipient)
-	if !check {
-		return "", errors.New("Recipient Not found")
-	}
+	// pk, check := userlib.KeystoreGet(recipient)
+	// if !check {
+	// 	return "", errors.New("Recipient Not found")
+	// }
 
 	sharedata = userdata.files[filename]
 	//sharedata.add = sharedata.mdata.fblocks[0]
 
 	sd, _ := json.Marshal(sharedata)
 
-	msg, _ := userlib.RSAEncrypt(&pk, sd, []byte("1"))
+	//msg, _ := userlib.RSAEncrypt(&pk, sd, []byte("1"))
 
-	msgid = hex.EncodeToString((msg))
+	msgid = hex.EncodeToString((sd))
 	return
 }
 
@@ -414,12 +414,12 @@ func (userdata *User) ReceiveFile(filename string, sender string, msgid string) 
 	var msg []byte
 	var block FileBlock
 	msg, _ = hex.DecodeString(msgid)
-	sd, err := userlib.RSADecrypt(userdata.PrivateKey, msg, []byte("1"))
-	if err != nil {
-		return errors.New("Error In decrypting msg")
-	}
+	// sd, err := userlib.RSADecrypt(userdata.PrivateKey, msg, []byte("1"))
+	// if err != nil {
+	// 	return errors.New("Error In decrypting msg")
+	// }
 
-	err1 := json.Unmarshal(sd, &sharedata)
+	err1 := json.Unmarshal(msg, &sharedata)
 
 	if err1 != nil {
 		return errors.New("Error in RcvFile Unmarshel")
