@@ -387,7 +387,8 @@ func (userdata *User) ShareFile(filename string, recipient string) (msgid string
 	if !check {
 		return "", errors.New("Recipient Not found")
 	}
-	
+
+
 	return
 }
 
@@ -397,10 +398,18 @@ func (userdata *User) ShareFile(filename string, recipient string) (msgid string
 // it is authentically from the sender.
 //ReceiveFile : function used to receive the file details from the sender
 func (userdata *User) ReceiveFile(filename string, sender string, msgid string) error {
+	if filename == "" || sender == "" {
+		return errors.New("Either filename or sender is empty")
+	}
+
+	
 	return errors.New("err")
 }
 
 // RevokeFile : function used revoke the shared file access
 func (userdata *User) RevokeFile(filename string) (err error) {
+	if filedata == "" {
+		return errors.New("Filename is empty")
+	}
 	return
 }
