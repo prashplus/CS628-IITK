@@ -73,7 +73,52 @@ func setBlockSize(blocksize int) {
 	configBlockSize = blocksize
 }
 
-//Hash helper function to return hash as []byte
+//euser helper struct to store encrypted_data and mac(encrypted_data)
+type euser struct {
+	CipherText []byte
+	Mac        []byte
+}
+
+//User : User structure used to store the user information
+type User struct {
+	Username   string
+	pass       string
+	files      map[string]Metadata
+	sharedfile map[string]sharingRecord
+	PrivateKey *userlib.PrivateKey
+}
+
+//Metadata struct
+type Metadata struct {
+	fileName  string
+	key       []byte
+	fblocks   map[int]string
+	fblockmac map[int][]byte
+	size      int
+}
+
+//FileBlock Struct
+type FileBlock struct {
+	Data []byte
+	Hmac []byte
+}
+
+// // This creates a sharing record, which is a argonkey pointing to something
+// // in the datastore to share with the recipient.
+
+// // This enables the recipient to access the encrypted file as well
+// // for reading/appending.
+
+// // Note that neither the recipient NOR the datastore should gain any
+// // information about what the sender calls the file.  Only the
+// // recipient can access the sharing record, and only the recipient
+// // should be able to know the sender.
+// // You may want to define what you actually want to pass as a
+// // sharingRecord to serialized/deserialize in the data store.
+type sharingRecord struct {
+}
+
+//Hash func to hash as []byte
 func Hash(datatoHash []byte) []byte {
 	hasher := userlib.NewSHA256()
 	hasher.Write(datatoHash)
@@ -103,27 +148,6 @@ func decrypt(ciphertext []byte, Key []byte) (plaintext []byte, err error) {
 	return plaintext, nil
 }
 
-//euser helper struct to store encrypted_data and mac(encrypted_data)
-type euser struct {
-	CipherText []byte
-	Mac        []byte
-}
-
-//Metadata struct
-type Metadata struct {
-	fileName  string
-	key       []byte
-	fblocks   map[int]string
-	fblockmac map[int][]byte
-	size      int
-}
-
-//FileBlock Struct
-type FileBlock struct {
-	Data []byte
-	Hmac []byte
-}
-
 //function to store blocks
 func storeBlock(filename string, data []byte, offset int, argonkey []byte) string {
 	addr := string(Hash([]byte(filename + string(offset))))
@@ -131,141 +155,6 @@ func storeBlock(filename string, data []byte, offset int, argonkey []byte) strin
 	userlib.DatastoreSet(addr, Edata)
 	return addr
 
-}
-
-//User : User structure used to store the user information
-type User struct {
-	Username   string
-	pass       string
-	files      map[string]Metadata
-	sharedfile map[string]sharingRecord
-	PrivateKey *userlib.PrivateKey
-}
-
-// StoreFile : function used to create a  file
-// It should store the file in fblocks only if length
-// of data []byte is a multiple of the blocksize; if
-// this is not the case, StoreFile should return an error.
-func (userdata *User) StoreFile(filename string, data []byte) (err error) {
-	var filedata Metadata
-	var block FileBlock
-
-	key := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
-
-	if filename == "" || len(data)%configBlockSize != 0 {
-		return errors.New("Error in Storing file")
-	}
-
-	filedata.fileName = filename
-	filedata.size = len(data) / configBlockSize
-	filedata.fblockmac = make(map[int][]byte)
-	filedata.fblocks = make(map[int]string)
-	filedata.key = userlib.Argon2Key([]byte(userdata.pass), []byte(filename), 16)
-
-	for i := 0; i < filedata.size; i++ {
-		filedata.fblockmac[i] = Hash(data[i : configBlockSize+i])
-		filedata.fblocks[i] = storeBlock(filename, data[i:configBlockSize+i], i, filedata.key)
-	}
-	userdata.files[filename] = filedata
-	userStr, _ := json.Marshal(userdata)
-	block.Data = encrypt([]byte(userStr), key)
-	block.Hmac = Hash(block.Data)
-	storedata(*userdata, block)
-	return
-
-}
-
-//storeData fuction
-func storedata(user User, block FileBlock) {
-	userData, _ := json.Marshal(block)
-	userKey := Hash([]byte(user.Username + user.pass))
-	key := userlib.Argon2Key([]byte(user.pass), Hash([]byte(user.Username)), 16)
-	EuserData := encrypt(userData, key)
-	userlib.DatastoreSet(string(userKey), EuserData)
-}
-
-// AppendFile Append should be efficient, you shouldn't rewrite or reencrypt the
-// existing file, but only whatever additional information and
-// metadata you need. The length of data []byte must be a multiple of
-// the block size; if it is not, AppendFile must return an error.
-// AppendFile : Function to append the file
-func (userdata *User) AppendFile(filename string, data []byte) (err error) {
-	return
-}
-
-// LoadFile :This loads a block from a file in the Datastore.
-//
-// It should give an error if the file block is corrupted in any way.
-// If there is no error, it must return exactly one block (of length blocksize)
-// of data.
-//
-// LoadFile is also expected to be efficient. Reading a random block from the
-// file should not fetch more than O(1) fblocks from the Datastore.
-func (userdata *User) LoadFile(filename string, offset int) (data []byte, err error) {
-	if filename == "" {
-		return nil, errors.New("Empty file name")
-	}
-	mdata := userdata.files[filename]
-	add := mdata.fblocks[offset]
-
-	if mdata.size <= offset {
-		return nil, errors.New("Offset not found")
-	}
-
-	loadfile, e1 := userlib.DatastoreGet(add)
-	if e1 != true {
-		return nil, errors.New("Data not found")
-	}
-
-	data, err = decrypt(loadfile, mdata.key)
-	if err != nil {
-		return nil, errors.New("Cannot decrypt(corrupted)")
-	}
-
-	hash := userlib.NewSHA256()
-	hash.Write(data)
-	hashed := hash.Sum(nil)
-
-	checkingHash := userlib.Equal(mdata.fblockmac[offset], hashed)
-	if checkingHash != true {
-		return nil, errors.New("Mac not matched")
-	}
-
-	return
-}
-
-// ShareFile : Function used to the share file with other user
-func (userdata *User) ShareFile(filename string, recipient string) (msgid string, err error) {
-	return
-}
-
-// ReceiveFile :Note recipient's filename can be different from the sender's filename.
-// The recipient should not be able to discover the sender's view on
-// what the filename even is!  However, the recipient must ensure that
-// it is authentically from the sender.
-//ReceiveFile : function used to receive the file details from the sender
-func (userdata *User) ReceiveFile(filename string, sender string, msgid string) error {
-	return errors.New("err")
-}
-
-// RevokeFile : function used revoke the shared file access
-func (userdata *User) RevokeFile(filename string) (err error) {
-	return
-}
-
-// // This creates a sharing record, which is a argonkey pointing to something
-// // in the datastore to share with the recipient.
-
-// // This enables the recipient to access the encrypted file as well
-// // for reading/appending.
-
-// // Note that neither the recipient NOR the datastore should gain any
-// // information about what the sender calls the file.  Only the
-// // recipient can access the sharing record, and only the recipient
-// // should be able to know the sender.
-// // You may want to define what you actually want to pass as a
-// // sharingRecord to serialized/deserialize in the data store.
-type sharingRecord struct {
 }
 
 // This creates a user.  It will only be called once for a user
@@ -361,4 +250,147 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	json.Unmarshal(plaintext, &user)
 
 	return &user, nil
+}
+
+// StoreFile : function used to create a  file
+// It should store the file in fblocks only if length
+// of data []byte is a multiple of the blocksize; if
+// this is not the case, StoreFile should return an error.
+func (userdata *User) StoreFile(filename string, data []byte) (err error) {
+	var filedata Metadata
+	var block FileBlock
+
+	key := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
+
+	if filename == "" || len(data)%configBlockSize != 0 {
+		return errors.New("Error in Storing file")
+	}
+
+	filedata.fileName = filename
+	filedata.size = len(data) / configBlockSize
+	filedata.fblockmac = make(map[int][]byte)
+	filedata.fblocks = make(map[int]string)
+	filedata.key = userlib.Argon2Key([]byte(userdata.pass), []byte(filename), 16)
+
+	for i := 0; i < filedata.size; i++ {
+		filedata.fblockmac[i] = Hash(data[i : configBlockSize+i])
+		filedata.fblocks[i] = storeBlock(filename, data[i:configBlockSize+i], i, filedata.key)
+	}
+	userdata.files[filename] = filedata
+	userStr, _ := json.Marshal(userdata)
+	block.Data = encrypt([]byte(userStr), key)
+	block.Hmac = Hash(block.Data)
+	storedata(*userdata, block)
+	return
+
+}
+
+//storeData fuction
+func storedata(user User, block FileBlock) {
+	userData, _ := json.Marshal(block)
+	userKey := Hash([]byte(user.Username + user.pass))
+	key := userlib.Argon2Key([]byte(user.pass), Hash([]byte(user.Username)), 16)
+	EuserData := encrypt(userData, key)
+	userlib.DatastoreSet(string(userKey), EuserData)
+}
+
+// AppendFile Append should be efficient, you shouldn't rewrite or reencrypt the
+// existing file, but only whatever additional information and
+// metadata you need. The length of data []byte must be a multiple of
+// the block size; if it is not, AppendFile must return an error.
+// AppendFile : Function to append the file
+func (userdata *User) AppendFile(filename string, data []byte) (err error) {
+	argonkeynew := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
+	var eusr euser
+	j := 0
+
+	if len(data)%configBlockSize != 0 || filename == "" || len(data) == 0 {
+		e := errors.New("Either filename not valid or length mismatch")
+		return e
+	}
+
+	mData := userdata.files[filename]
+	if mData.fileName != filename {
+		return errors.New("File not found")
+	}
+
+	for i := mData.size; i < mData.size+(len(data)/configBlockSize); i++ {
+		mData.fblocks[i] = storeBlock(filename, data[j:j+configBlockSize], i, mData.key)
+		mData.fblockmac[i] = Hash(data[j : j+configBlockSize])
+		j += configBlockSize
+	}
+
+	//UPDATE META DATA SIZE
+	mData.size += len(data) / configBlockSize
+	userdata.files[filename] = mData
+	userdatastruct, _ := json.Marshal(userdata)
+	eusr.CipherText = encrypt([]byte(userdatastruct), argonkeynew)
+	eusr.Mac = Hash(eusr.CipherText)
+
+	userData, _ := json.Marshal(eusr)
+	ukey := Hash([]byte(userdata.Username + userdata.pass))
+	EncUserData := encrypt([]byte(userData), argonkeynew)
+	userlib.DatastoreSet(string(ukey), EncUserData)
+
+	return nil
+}
+
+// LoadFile :This loads a block from a file in the Datastore.
+//
+// It should give an error if the file block is corrupted in any way.
+// If there is no error, it must return exactly one block (of length blocksize)
+// of data.
+//
+// LoadFile is also expected to be efficient. Reading a random block from the
+// file should not fetch more than O(1) fblocks from the Datastore.
+func (userdata *User) LoadFile(filename string, offset int) (data []byte, err error) {
+	if filename == "" {
+		return nil, errors.New("Empty file name")
+	}
+	mdata := userdata.files[filename]
+	add := mdata.fblocks[offset]
+
+	if mdata.size <= offset {
+		return nil, errors.New("Offset not found")
+	}
+
+	loadfile, e1 := userlib.DatastoreGet(add)
+	if e1 != true {
+		return nil, errors.New("Data not found")
+	}
+
+	data, err = decrypt(loadfile, mdata.key)
+	if err != nil {
+		return nil, errors.New("Cannot decrypt(corrupted)")
+	}
+
+	hash := userlib.NewSHA256()
+	hash.Write(data)
+	hashed := hash.Sum(nil)
+
+	checkingHash := userlib.Equal(mdata.fblockmac[offset], hashed)
+	if checkingHash != true {
+		return nil, errors.New("Mac not matched")
+	}
+
+	return
+}
+
+// ShareFile : Function used to the share file with other user
+func (userdata *User) ShareFile(filename string, recipient string) (msgid string, err error) {
+	return
+}
+
+// ReceiveFile :Note recipient's filename can be different from the sender's filename.
+// The recipient should not be able to discover the sender's view on
+// what the filename even is!  However, the recipient must ensure that
+// it is authentically from the sender.
+//ReceiveFile : function used to receive the file details from the sender
+func (userdata *User) ReceiveFile(filename string, sender string, msgid string) error {
+	return errors.New("err")
+}
+
+// RevokeFile : function used revoke the shared file access
+func (userdata *User) RevokeFile(filename string) (err error) {
+	return
 }
