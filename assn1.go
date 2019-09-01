@@ -116,7 +116,9 @@ type FileBlock struct {
 // // You may want to define what you actually want to pass as a
 // // sharingRecord to serialized/deserialize in the data store.
 type sharingRecord struct {
-	//var mdata Metadata
+	//pk    rsa.PublicKey
+	mdata Metadata
+	//add   string
 }
 
 //Hash func to hash as []byte
@@ -382,12 +384,20 @@ func (userdata *User) ShareFile(filename string, recipient string) (msgid string
 	if filename == "" || recipient == "" {
 		return "", errors.New("Either Filename or Recipient is empty")
 	}
-	// pk, check := userlib.KeystoreGet(recipient)
+	var sharedata Metadata
+	pk, check := userlib.KeystoreGet(recipient)
+	if !check {
+		return "", errors.New("Recipient Not found")
+	}
 
-	// if !check {
-	// 	return "", errors.New("Recipient Not found")
-	// }
+	sharedata = userdata.files[filename]
+	//sharedata.add = sharedata.mdata.fblocks[0]
 
+	sd, _ := json.Marshal(sharedata)
+
+	msg, _ := userlib.RSAEncrypt(&pk, sd, []byte("1"))
+
+	msgid = hex.EncodeToString((msg))
 	return
 }
 
@@ -400,8 +410,28 @@ func (userdata *User) ReceiveFile(filename string, sender string, msgid string) 
 	if filename == "" || sender == "" {
 		return errors.New("Either filename or sender is empty")
 	}
+	var sharedata Metadata
+	var msg []byte
+	var block FileBlock
+	msg, _ = hex.DecodeString(msgid)
+	sd, err := userlib.RSADecrypt(userdata.PrivateKey, msg, []byte("1"))
+	if err != nil {
+		return errors.New("Error In decrypting msg")
+	}
 
-	return errors.New("err")
+	err1 := json.Unmarshal(sd, &sharedata)
+
+	if err1 != nil {
+		return errors.New("Error in RcvFile Unmarshel")
+	}
+	key := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
+	userdata.files[filename] = sharedata
+	userStr, _ := json.Marshal(userdata)
+	block.Data = encrypt([]byte(userStr), key)
+	block.Hmac = Hash(block.Data)
+	storedata(*userdata, block)
+
+	return errors.New("Error RecvFile")
 }
 
 // RevokeFile : function used revoke the shared file access
