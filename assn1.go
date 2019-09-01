@@ -395,7 +395,7 @@ func (userdata *User) ShareFile(filename string, recipient string) (msgid string
 
 	sd, _ := json.Marshal(sharedata)
 
-	//msg, _ := userlib.RSAEncrypt(&pk, sd, []byte("1"))
+	// msg, _ := userlib.RSAEncrypt(&pk, sd, []byte("1"))
 
 	msgid = hex.EncodeToString((sd))
 	return
