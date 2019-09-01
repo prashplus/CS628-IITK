@@ -116,7 +116,7 @@ type FileBlock struct {
 // // You may want to define what you actually want to pass as a
 // // sharingRecord to serialized/deserialize in the data store.
 type sharingRecord struct {
-	var mdata Metadata
+	//var mdata Metadata
 }
 
 //Hash func to hash as []byte
@@ -382,12 +382,11 @@ func (userdata *User) ShareFile(filename string, recipient string) (msgid string
 	if filename == "" || recipient == "" {
 		return "", errors.New("Either Filename or Recipient is empty")
 	}
-	pk, check := userlib.KeystoreGet(recipient)
+	// pk, check := userlib.KeystoreGet(recipient)
 
-	if !check {
-		return "", errors.New("Recipient Not found")
-	}
-
+	// if !check {
+	// 	return "", errors.New("Recipient Not found")
+	// }
 
 	return
 }
@@ -402,13 +401,12 @@ func (userdata *User) ReceiveFile(filename string, sender string, msgid string) 
 		return errors.New("Either filename or sender is empty")
 	}
 
-	
 	return errors.New("err")
 }
 
 // RevokeFile : function used revoke the shared file access
 func (userdata *User) RevokeFile(filename string) (err error) {
-	if filedata == "" {
+	if filename == "" {
 		return errors.New("Filename is empty")
 	}
 	return
