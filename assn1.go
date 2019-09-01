@@ -436,59 +436,59 @@ func (userdata *User) ReceiveFile(filename string, sender string, msgid string) 
 
 // RevokeFile : function used revoke the shared file access
 func (userdata *User) RevokeFile(filename string) (err error) {
-	if filename == "" {
-		return errors.New("Filename is empty")
-	}
-	offset := 0
-	mdata := userdata.files[filename]
-	add := mdata.fblocks[offset]
+	// if filename == "" {
+	// 	return errors.New("Filename is empty")
+	// }
+	// offset := 0
+	// mdata := userdata.files[filename]
+	// add := mdata.fblocks[offset]
 
-	if mdata.size <= offset {
-		return errors.New("Offset not found")
-	}
+	// if mdata.size <= offset {
+	// 	return errors.New("Offset not found")
+	// }
 
-	loadfile, e1 := userlib.DatastoreGet(add)
-	if e1 != true {
-		return errors.New("Data not found")
-	}
+	// loadfile, e1 := userlib.DatastoreGet(add)
+	// if e1 != true {
+	// 	return errors.New("Data not found")
+	// }
 
-	data, err := decrypt(loadfile, mdata.key)
-	if err != nil {
-		return errors.New("Cannot decrypt(corrupted)")
-	}
+	// data, err := decrypt(loadfile, mdata.key)
+	// if err != nil {
+	// 	return errors.New("Cannot decrypt(corrupted)")
+	// }
 
-	hash := userlib.NewSHA256()
-	hash.Write(data)
-	hashed := hash.Sum(nil)
+	// hash := userlib.NewSHA256()
+	// hash.Write(data)
+	// hashed := hash.Sum(nil)
 
-	checkingHash := userlib.Equal(mdata.fblockmac[offset], hashed)
-	if checkingHash != true {
-		return errors.New("Mac not matched")
-	}
+	// checkingHash := userlib.Equal(mdata.fblockmac[offset], hashed)
+	// if checkingHash != true {
+	// 	return errors.New("Mac not matched")
+	// }
 
-	var filedata Metadata
-	var block FileBlock
+	// var filedata Metadata
+	// var block FileBlock
 
-	key := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
+	// key := userlib.Argon2Key([]byte(userdata.pass), Hash([]byte(userdata.Username)), 16)
 
-	if filename == "" || len(data)%configBlockSize != 0 {
-		return errors.New("Error in Storing file")
-	}
+	// if filename == "" || len(data)%configBlockSize != 0 {
+	// 	return errors.New("Error in Storing file")
+	// }
 
-	filedata.fileName = filename
-	filedata.size = len(data) / configBlockSize
-	filedata.fblockmac = make(map[int][]byte)
-	filedata.fblocks = make(map[int]string)
-	filedata.key = userlib.Argon2Key([]byte(userdata.pass), []byte(filename), 20)
+	// filedata.fileName = filename
+	// filedata.size = len(data) / configBlockSize
+	// filedata.fblockmac = make(map[int][]byte)
+	// filedata.fblocks = make(map[int]string)
+	// filedata.key = userlib.Argon2Key([]byte(userdata.pass), []byte(filename), 20)
 
-	for i := 0; i < filedata.size; i++ {
-		filedata.fblockmac[i] = Hash(data[i : configBlockSize+i])
-		filedata.fblocks[i] = storeBlock(filename, data[i:configBlockSize+i], i, filedata.key)
-	}
-	userdata.files[filename] = filedata
-	userStr, _ := json.Marshal(userdata)
-	block.Data = encrypt([]byte(userStr), key)
-	block.Hmac = Hash(block.Data)
-	storedata(*userdata, block)
+	// for i := 0; i < filedata.size; i++ {
+	// 	filedata.fblockmac[i] = Hash(data[i : configBlockSize+i])
+	// 	filedata.fblocks[i] = storeBlock(filename, data[i:configBlockSize+i], i, filedata.key)
+	// }
+	// userdata.files[filename] = filedata
+	// userStr, _ := json.Marshal(userdata)
+	// block.Data = encrypt([]byte(userStr), key)
+	// block.Hmac = Hash(block.Data)
+	// storedata(*userdata, block)
 	return
 }
