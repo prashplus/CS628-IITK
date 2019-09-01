@@ -49,8 +49,8 @@ func TestFileStoreLoadAppend(t *testing.T) {
 
 }
 
-/*
-func TestFileShareReceive(t *testing.T) {
-  // add test cases here
-}
-*/
+// /*
+// func TestFileShareReceive(t *testing.T) {
+//   // add test cases here
+// }
+// */
