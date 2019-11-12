@@ -1,0 +1,7 @@
+The HTML file sends the simple POST request with the attacker username and password, which will make the victim logged in with that credentials accidently.
+But the twist here is that the login page is now embedded with the token which increase the security, since, the web server now also expects token given before with the username and password. 
+So, what I have done is created and iframe which sends a get reeuest embedded with the script to post back the csrf tocken and soon as it gets and comes back to the browser.
+The post message is then captured by the event listener which extracts the message and gets the token.
+Finally, the post request is sent with the token for the unintentional authentication.
+**** This only works when user has already opend the BUNGLE with csrf = 1 one time. *****
+All this proves that attacker can make victim to send unintentional data/request without his/her consent.

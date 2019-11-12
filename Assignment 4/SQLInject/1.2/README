@@ -1,0 +1,5 @@
+Just did the simple brute force attack with the given password list and appended "new line" with the password.
+Just run the python file 1.2.py with provided dic.csv file.
+
+###O/P###
+username=victim&password=d42c402d302a27cfd4da418ec2faf561

